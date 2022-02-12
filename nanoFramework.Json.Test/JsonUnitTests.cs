@@ -100,6 +100,11 @@ namespace nanoFramework.Json.Test
         public ArrayList arguments { get; set; }
     }
 
+    public class JsonTestTimeSpan
+    {
+        public TimeSpan TestTimeSpan { get; set; }
+    }
+
     [TestClass]
     public class JsonUnitTests
     {
@@ -117,6 +122,28 @@ namespace nanoFramework.Json.Test
 
         [TestMethod]
         public void Can_serialize_and_deserialize_arrays_of_class_objects()
+        {
+            Debug.WriteLine("Can_serialize_and_deserialize_arrays_of_class_objects() - Starting test...");
+            JsonTestTimeSpan timeSpan = new JsonTestTimeSpan()
+            {
+                TestTimeSpan = TimeSpan.FromSeconds(1)
+            };
+
+            var result = JsonConvert.SerializeObject(timeSpan);
+            Debug.WriteLine($"Serialized Array: {result}, {result.Split('"').Length} ");
+
+            Assert.Equal(
+                result.Split('"').Length,
+                5,
+                $"Validation: Serialization wrong not enough \" ");
+
+
+
+
+        }
+
+        [TestMethod]
+        public void Can_serialize_and_deserialize_TimeSpan_objectsts()
         {
             Debug.WriteLine("Can_serialize_and_deserialize_arrays_of_class_objects() - Starting test...");
             JsonTestTown myTown = new JsonTestTown
@@ -316,6 +343,8 @@ namespace nanoFramework.Json.Test
             Debug.WriteLine("Can_serialize_and_deserialize_simple_object() - Finished - test succeeded");
             Debug.WriteLine("");
         }
+
+
 
         [TestMethod]
         public void Can_serialize_and_deserialize_complex_object()
