@@ -47,7 +47,7 @@ namespace nanoFramework.Json
         public static string SerializeObject(object oSource)
         {
 
-            return JsonSerializer.SerializeObject(oSource);
+            //return JsonSerializer.SerializeObject(oSource);
 
             var type = oSource.GetType();
 

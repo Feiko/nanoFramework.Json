@@ -18,6 +18,9 @@ namespace nanoFramework.json
             DateFormat = dateTimeFormat;
         }
 
+        static byte[] buffer = new byte[4096];
+        static int index = 0;
+
         /// <summary>
         /// Gets/Sets the format that will be used to display
         /// and parse dates in the Json data.
@@ -32,19 +35,31 @@ namespace nanoFramework.json
         /// <remarks>For objects, only internal properties with getters are converted.</remarks>
 		public static string Serialize(object o)
         {
-            return  SerializeObject(o);
+            index = 0;
+            SerializeObject(o);
+            //return Encoding.UTF8.GetString(buffer, 0, index);
+            return String.Empty;
+            //return SerializeObject(o);
         }
 
+        internal static void StringToBuffer(string value)
+        {
+            Encoding.UTF8.GetBytes(value).CopyTo(buffer, index);
+            index += value.Length;
+        }
         /// <summary>
         /// Convert an object to a JSON string.
         /// </summary>
         /// <param name="o">The value to convert. Supported types are: Boolean, String, Byte, (U)Int16, (U)Int32, Float, Double, Decimal, Array, IDictionary, IEnumerable, Guid, Datetime, TimeSpan, DictionaryEntry, Object and null.</param>
         /// <returns>The JSON object as a string or null when the value type is not supported.</returns>
         /// <remarks>For objects, only internal properties with getters are converted.</remarks>
-        internal static string SerializeObject(object o, DateTimeFormat dateTimeFormat = DateTimeFormat.Default)
+        internal static void SerializeObject(object o, DateTimeFormat dateTimeFormat = DateTimeFormat.Default)
         {
             if (o == null)
-                return "null";
+            {
+                StringToBuffer("null");
+                return; //"null";
+            }
 
             Type type = o.GetType();
 
@@ -52,30 +67,44 @@ namespace nanoFramework.json
             {
                 case "Boolean":
                     {
-                        return (bool)o ? "true" : "false";
+                        StringToBuffer((bool)o ? "true" : "false");
+                        return; //"null";
+                        //return (bool)o ? "true" : "false";
                     }
                 case "TimeSpan":
                 case "String":
                 case "Char":
                 case "Guid":
                     {
-                        return "\"" + o.ToString() + "\"";
+                        buffer[index] = (byte)'"';
+                        index++;
+                        StringToBuffer(o.ToString());
+                        buffer[index] = (byte)'"';
+                        index++;
+                        return;
+                        //return "\"" + o.ToString() + "\"";
                     }
                 case "Single":
                     {
                         if (float.IsNaN((Single)o))
                         {
-                            return "null";
+                            StringToBuffer("null");
+                            return;
                         }
-                        return o.ToString();
+                        StringToBuffer(o.ToString());
+                        return;
+                        //return o.ToString();
                     }
                 case "Double":
                     {
                         if (double.IsNaN((double)o))
                         {
-                            return "null";
+                            StringToBuffer("null");
+                            return;
                         }
-                        return o.ToString();
+                        StringToBuffer(o.ToString());
+                        return;
+                        //return o.ToString();
                     }
                 case "Decimal":
                 case "Float":
@@ -88,24 +117,33 @@ namespace nanoFramework.json
                 case "Int64":
                 case "UInt64":
                     {
-                        return o.ToString();
+                        StringToBuffer(o.ToString());
+                        return;
                     }
                 case "DateTime":
                     { //TODO Remove all reference to non IS8601 DATETime
-                        return "\"" + nanoFramework.Json.DateTimeExtensions.ToIso8601((DateTime)o) + "\"";
+                        buffer[index] = (byte)'"';
+                        index++;
+                        StringToBuffer(nanoFramework.Json.DateTimeExtensions.ToIso8601((DateTime)o));
+                        buffer[index] = (byte)'"';
+                        index++;
+                        return;
+                        //return "\"" + nanoFramework.Json.DateTimeExtensions.ToIso8601((DateTime)o) + "\"";
                     }
             }
 
             if (o is IDictionary && !type.IsArray)
             {
                 IDictionary dictionary = o as IDictionary;
-                return SerializeIDictionary(dictionary, dateTimeFormat);
+                SerializeIDictionary(dictionary, dateTimeFormat);
+                return;
             }
 
             if (o is IEnumerable)
             {
                 IEnumerable enumerable = o as IEnumerable;
-                return SerializeIEnumerable(enumerable, dateTimeFormat);
+                SerializeIEnumerable(enumerable, dateTimeFormat);
+                return;
             }
 
             if (type == typeof(System.Collections.DictionaryEntry))
@@ -118,7 +156,8 @@ namespace nanoFramework.json
                     hashtable.Add(entry.Key, entry.Value);
 
                 }
-                return SerializeIDictionary(hashtable, dateTimeFormat);
+                SerializeIDictionary(hashtable, dateTimeFormat);
+                return;
             }
 
             if (type.IsClass)
@@ -156,10 +195,11 @@ namespace nanoFramework.json
                         hashtable.Add(method.Name.Substring(4), returnObject);
                     }
                 }
-                return SerializeIDictionary(hashtable, dateTimeFormat);
+                SerializeIDictionary(hashtable, dateTimeFormat);
+                return;
             }
 
-            return null;
+            return;
         }
 
         /// <summary>
@@ -167,22 +207,33 @@ namespace nanoFramework.json
         /// </summary>
         /// <param name="enumerable">The value to convert.</param>
         /// <returns>The JSON object as a string or null when the value type is not supported.</returns>
-        internal static string SerializeIEnumerable(IEnumerable enumerable, DateTimeFormat dateTimeFormat = DateTimeFormat.Default)
+        internal static void SerializeIEnumerable(IEnumerable enumerable, DateTimeFormat dateTimeFormat = DateTimeFormat.Default)
         {
-            string result = ("[");
+            //string result = ("[");
+            bool firstItem = true;
+            buffer[index] = (byte)'[';
+            index++;
 
             foreach (object current in enumerable)
             {
-                if (result.Length > 1)
+                if (!firstItem)
                 {
-                    result += (",");
+                    buffer[index] = (byte)',';
+                    index++;
+                    //result += (",");
                 }
-
-                result += (SerializeObject(current, dateTimeFormat));
+                else
+                {
+                    firstItem = false;
+                }
+                SerializeObject(current, dateTimeFormat);
+                //result += (SerializeObject(current, dateTimeFormat));
             }
 
-            result += ("]");
-            return result;
+            buffer[index] = (byte)']';
+            index++;
+            //result += ("]");
+            return;
         }
 
         /// <summary>
@@ -191,28 +242,45 @@ namespace nanoFramework.json
         /// <param name="dictionary">The value to convert.</param>
         /// <returns>The JSON object as a string or null when the value type is not supported.</returns>
 
-        internal static string SerializeIDictionary(IDictionary dictionary, DateTimeFormat dateTimeFormat = DateTimeFormat.Default)
+        internal static void SerializeIDictionary(IDictionary dictionary, DateTimeFormat dateTimeFormat = DateTimeFormat.Default)
         {
-            
-            string result = "{";
+
+            //string result = "{";
+            bool firstItem = true;
+            buffer[index] = (byte)'{';
+            index++;
 
             foreach (DictionaryEntry entry in dictionary)
             {
-                if (result.Length > 1)
+                if(!firstItem)
                 {
-                    result += (",");
+                    buffer[index] = (byte)',';
+                    index++;
+                    //result += (",");
                 }
+                else
+                {
+                    firstItem = false;
+                }
+                buffer[index] = (byte)'"';
+                index++;
+                StringToBuffer((string)entry.Key);
+                buffer[index] = (byte)'"';
+                index++;
+                buffer[index] = (byte)':';
+                index++;
+                //result += ("\"" + entry.Key + "\":");
 
-                result += ("\"" + entry.Key + "\":");
-                //result += (":");
-
-
-                var ser = SerializeObject(entry.Value, dateTimeFormat);
-                result += (ser);
+                SerializeObject(entry.Value, dateTimeFormat);
+                //var ser = SerializeObject(entry.Value, dateTimeFormat);
+                //result += (ser);
             }
 
-            result += ("}");
-            return result;
+            buffer[index] = (byte)'}';
+            index++;
+            return;
+            //result += ("}");
+            //return result;
         }
 
         /// <summary>
